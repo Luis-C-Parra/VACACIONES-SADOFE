@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Vacaciones Enfermería | SADOFE</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+<script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/jspdf-autotable@3.8.2/dist/jspdf.plugin.autotable.min.js"></script>
+</head>
+<body>
+<header><div class="wrap"><div><h1>PLANIFICACIÓN DE VACACIONES · ENFERMERÍA</h1><small id="cycleTitle">Ciclo · SADOFE</small></div><div><button class="secondary" onclick="exportExcel()">Exportar Excel</button> <button class="secondary" onclick="exportPDF()">Exportar PDF</button></div></div></header>
+<main>
+<div class="tabs">
+  <button class="tab active" data-view="dashboard">Planificación</button>
+  <button class="tab" data-view="assign">Asignar vacaciones</button>
+  <button class="tab" data-view="reports">Reportes</button>
+  <button class="tab" data-view="holidays">Feriados</button>
+  <button class="tab" data-view="staff">Enfermeros</button>
+</div>
+
+<div id="connStatus" class="notice conn-status" style="display:none"></div>
+
+<section id="dashboard" class="view active">
+  <div class="grid">
+    <div class="card stat"><span class="muted">PERSONAL</span><b id="statStaff">0</b></div>
+    <div class="card stat"><span class="muted">PERSONAL CON VACACIONES</span><b id="statVac">0</b></div>
+    <div class="card stat"><span class="muted">DÍAS ASIGNADOS</span><b id="statDays">0</b></div>
+    <div class="card stat"><span class="muted">FERIADOS CARGADOS</span><b id="statHol">0</b></div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <div class="controls">
+      <div class="field"><label>CICLO</label><select id="cycleYear" onchange="changeCycle(this.value)"></select></div>
+      <div class="field"><label>VISTA</label><select id="staffFilter" onchange="renderCalendar()"><option value="all">Todos</option><option value="vac">Solo con vacaciones</option></select></div>
+      <div class="field"><label>ENFERMERO SELECCIONADO</label><select id="quickNurse"></select></div>
+    </div>
+    <div class="legend">
+      <span><i class="dot vac"></i> Vacaciones</span><span><i class="dot we"></i> Sábado / domingo</span><span><i class="dot hol"></i> Feriado</span>
+      <span class="muted">Con un enfermero seleccionado, haga clic sobre un día para asignar/quitar ese día.</span>
+    </div>
+  </div>
+  <div id="calendar" style="margin-top:14px"></div>
+</section>
+
+<section id="assign" class="view">
+  <div class="card">
+    <h2>Asignar un período de vacaciones</h2>
+    <div class="notice">La aplicación permite vacaciones compartidas: dos o más enfermeros pueden tener los mismos días. No se bloquean superposiciones. Los cambios se guardan solos en Google Sheets.</div>
+    <div class="controls">
+      <div class="field"><label>ENFERMERO</label><select id="assignNurse"></select></div>
+      <div class="field"><label>DESDE</label><input id="fromDate" type="date"></div>
+      <div class="field"><label>HASTA</label><input id="toDate" type="date"></div>
+      <div class="field"><label>OBSERVACIÓN</label><input id="assignNote" type="text" placeholder="Opcional"></div>
+      <button class="primary" onclick="assignRange()">Asignar período</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px">
+    <h3>Últimas asignaciones</h3><div id="recentAssignments"></div>
+  </div>
+</section>
+
+<section id="reports" class="view">
+  <div class="card">
+    <div class="controls">
+      <div class="field"><label>TIPO DE REPORTE</label><select id="reportType" onchange="renderReportControls()"><option value="month">Mensual</option><option value="week">Semanal</option><option value="annual">Anual</option><option value="nurse">Por enfermero</option></select></div>
+      <div id="reportControls"></div>
+      <button class="primary" onclick="renderReport()">Generar reporte</button>
+      <button class="secondary" onclick="printReport()">Imprimir / PDF</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px" id="reportResult"></div>
+</section>
+
+<section id="holidays" class="view">
+  <div class="card">
+    <h2>Feriados</h2>
+    <div class="controls">
+      <div class="field"><label>FECHA</label><input id="holDate" type="date"></div>
+      <div class="field"><label>NOMBRE DEL FERIADO</label><input id="holName" type="text" placeholder="Ej. Día del Trabajador"></div>
+      <button class="primary" onclick="addHoliday()">Agregar feriado</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px"><div id="holidayList"></div></div>
+</section>
+
+<section id="staff" class="view">
+  <div class="card">
+    <h2>Personal de enfermería</h2>
+    <div class="notice">Esta lista se lee y se guarda directo en la pestaña <b>enfermeros</b> de tu Google Sheet.</div>
+    <div class="controls">
+      <div class="field"><label>APELLIDO Y NOMBRE</label><input id="newStaff" type="text" placeholder="Apellido, Nombre"></div>
+      <button class="primary" onclick="addStaff()">Agregar</button>
+    </div>
+  </div>
+  <div class="card" style="margin-top:14px"><div id="staffList"></div></div>
+</section>
+</main><div id="toast"></div>
+
+<script src="app.js"></script>
+</body></html>
