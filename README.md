@@ -1,54 +1,32 @@
-# Planificación de Vacaciones · Enfermería · SADOFE
+# Planificación de Vacaciones · Enfermería
 
-Web app estática para planificar vacaciones del personal de enfermería en ciclos **octubre → julio**.
+App para planificar vacaciones del personal de enfermería, con los datos guardados en un Google Sheet (personal, vacaciones, feriados y configuración).
 
-## Incluye
+## Archivos
 
-- Calendario de octubre a julio del año siguiente.
-- Asignación por período (desde/hasta).
-- Vacaciones compartidas: no bloquea superposiciones.
-- Click sobre una celda para agregar/quitar un día.
-- Sábados y domingos diferenciados.
-- Feriados configurables con color independiente.
-- Reportes mensual, semanal, anual y por enfermero.
-- Exportación a Excel con estructura de calendario similar al modelo enviado.
-- Exportación a PDF, un mes por página.
-- Personal editable.
-- Persistencia local en el navegador.
-- Integración opcional con Google Sheets mediante `Code.gs`.
+- `index.html` — estructura de la app
+- `styles.css` — estilos
+- `app.js` — lógica del frontend (calendario, asignaciones, reportes, exportación a Excel/PDF)
+- `Code.gs` — backend en Google Apps Script, se pega en el editor de Apps Script del Google Sheet
 
-## Fuente de enfermeros
+## Instalación
 
-El backend opcional toma los nombres desde la pestaña **enfermeros** del Google Spreadsheet **SADOFE**, columna A.
+1. Creá un Google Sheet nuevo (o usá uno existente).
+2. Andá a **Extensiones → Apps Script** y pegá todo el contenido de `Code.gs`, reemplazando el código de ejemplo.
+3. Guardá, y andá a **Implementar → Nueva implementación**.
+   - Tipo: **Aplicación web**
+   - Ejecutar como: **Yo**
+   - Quién tiene acceso: **Cualquier usuario**
+4. Copiá la URL que termina en `/exec`.
+5. En `app.js`, pegá esa URL en la constante `API_URL` (arriba del todo del archivo).
+6. Subí `index.html`, `styles.css` y `app.js` a donde vayas a servir la app (GitHub Pages, Netlify, etc.).
 
-## Publicar en GitHub Pages
+## Actualizar el backend después de editar Code.gs
 
-1. Subir `index.html` a un repositorio.
-2. Activar GitHub Pages.
-3. Abrir la URL publicada.
+Editar el código en el editor de Apps Script **no actualiza automáticamente** la URL `/exec` ya publicada. Cada vez que cambies `Code.gs`:
 
-No necesita servidor para funcionar localmente.
+1. Implementar → Administrar implementaciones
+2. Editá (ícono de lápiz) la implementación existente — no crees una nueva
+3. Versión → **Nueva versión** → Implementar
 
-## Conectar Google Sheets
-
-1. Abrir el Spreadsheet SADOFE.
-2. Extensiones → Apps Script.
-3. Copiar el contenido de `Code.gs`.
-4. Guardar.
-5. Implementar → Nueva implementación → Aplicación web.
-6. Ejecutar como usted y habilitar acceso según las políticas de su cuenta.
-7. Copiar la URL `/exec`.
-8. En la pestaña **Enfermeros** de la app, pegar la URL.
-9. Usar **Cargar desde Google Sheets** y luego **Guardar en Google Sheets**.
-
-## Próxima etapa recomendada
-
-Para producción conviene agregar:
-- usuarios/roles (administrador y consulta),
-- historial de cambios,
-- respaldo automático,
-- reglas configurables de cantidad de días,
-- bloqueo de fechas ya cerradas,
-- filtro por sector/piso/turno,
-- panel de cobertura de personal,
-- exportación exactamente idéntica al libro institucional.
+Así la URL `/exec` se mantiene igual y no hace falta tocar `app.js` de nuevo.

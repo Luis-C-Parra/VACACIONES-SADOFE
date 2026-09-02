@@ -184,6 +184,69 @@ function formatRanges(ds){
 }
 function rangeText(a,b){return a===b?humanDate(a):`${humanDate(a)} al ${humanDate(b)}`}
 function humanDate(s){const d=dateObj(s);return `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`}
+function getPeriods(){
+  const rows=state.assignments.filter(a=>inCycle(a.date)).slice().sort((a,b)=>a.nurse.localeCompare(b.nurse,'es')||a.date.localeCompare(b.date));
+  const periods=[]; let cur=null;
+  for(const a of rows){
+    if(cur && cur.nurse===a.nurse){
+      const next=dateObj(cur.end); next.setDate(next.getDate()+1);
+      if(next.toDateString()===dateObj(a.date).toDateString()){ cur.end=a.date; if(!cur.note && a.note) cur.note=a.note; continue }
+    }
+    if(cur) periods.push(cur);
+    cur={nurse:a.nurse, start:a.date, end:a.date, note:a.note||''};
+  }
+  if(cur) periods.push(cur);
+  return periods;
+}
+function renderAssignmentsEditor(){
+  const periods=getPeriods();
+  document.getElementById('assignmentsEditor').innerHTML = periods.length
+    ? `<table class="report"><thead><tr><th>Enfermero</th><th>Desde</th><th>Hasta</th><th>Observación</th><th></th></tr></thead><tbody>${periods.map(renderPeriodRow).join('')}</tbody></table>`
+    : '<div class="empty">No hay vacaciones asignadas en este ciclo.</div>';
+}
+function renderPeriodRow(p){
+  const n=esc(p.nurse).replace(/'/g,"&#039;");
+  return `<tr><td class="cell-nurse">${esc(p.nurse)}</td><td class="cell-start">${humanDate(p.start)}</td><td class="cell-end">${humanDate(p.end)}</td><td class="cell-note">${esc(p.note||'')}</td><td class="cell-actions"><button class="ghost" onclick="startEditPeriod(this,'${n}','${p.start}','${p.end}')">Editar</button> <button class="danger" onclick="deletePeriod('${n}','${p.start}','${p.end}')">Eliminar</button></td></tr>`;
+}
+function startEditPeriod(btn,nurse,start,end){
+  const p=getPeriods().find(x=>x.nurse===nurse&&x.start===start&&x.end===end);
+  if(!p)return;
+  const row=btn.closest('tr');
+  const nurseOpts=state.staff.map(nm=>`<option ${nm===nurse?'selected':''}>${esc(nm)}</option>`).join('');
+  row.querySelector('.cell-nurse').innerHTML=`<select id="editPeriodNurse">${nurseOpts}</select>`;
+  row.querySelector('.cell-start').innerHTML=`<input type="date" id="editPeriodStart" value="${start}">`;
+  row.querySelector('.cell-end').innerHTML=`<input type="date" id="editPeriodEnd" value="${end}">`;
+  row.querySelector('.cell-note').innerHTML=`<input type="text" id="editPeriodNote" value="${esc(p.note||'')}">`;
+  row.querySelector('.cell-actions').innerHTML=`<button class="primary" onclick="confirmEditPeriod('${nurse.replace(/'/g,"\\'")}','${start}','${end}')">Guardar</button> <button class="ghost" onclick="renderAssignmentsEditor()">Cancelar</button>`;
+}
+function removePeriodDates(nurse,start,end){
+  const s=dateObj(start), e=dateObj(end);
+  state.assignments=state.assignments.filter(a=>{
+    if(a.nurse!==nurse)return true;
+    const d=dateObj(a.date);
+    return !(d>=s&&d<=e);
+  });
+}
+function confirmEditPeriod(oldNurse,oldStart,oldEnd){
+  const newNurse=document.getElementById('editPeriodNurse').value;
+  const newNote=document.getElementById('editPeriodNote').value.trim();
+  let a=dateObj(document.getElementById('editPeriodStart').value), b=dateObj(document.getElementById('editPeriodEnd').value);
+  if(!newNurse||isNaN(a)||isNaN(b))return toast('Complete enfermero y fechas');
+  if(a>b)[a,b]=[b,a];
+  removePeriodDates(oldNurse,oldStart,oldEnd);
+  let count=0;
+  for(let d=new Date(a);d<=b;d.setDate(d.getDate()+1)){
+    const s=iso(d.getFullYear(),d.getMonth()+1,d.getDate());
+    if(!inCycle(s))continue;
+    if(!hasVac(newNurse,s)){state.assignments.push({nurse:newNurse,date:s,note:newNote});count++}
+  }
+  save();renderAll();toast('Período modificado');
+}
+function deletePeriod(nurse,start,end){
+  if(!confirm('¿Eliminar todo el período de vacaciones seleccionado?'))return;
+  removePeriodDates(nurse,start,end);
+  save();renderAll();toast('Período eliminado');
+}
 function renderHolidays(){
   const hs=state.holidays.filter(h=>inCycle(h.date));
   document.getElementById('holidayList').innerHTML=hs.length?`<table class="report"><thead><tr><th>Fecha</th><th>Feriado</th><th></th></tr></thead><tbody>${hs.map(h=>`<tr><td>${humanDate(h.date)}</td><td>${esc(h.name||'Feriado')}</td><td><button class="danger" onclick="deleteHoliday('${h.date}')">Eliminar</button></td></tr>`).join('')}</tbody></table>`:'<div class="empty">No hay feriados cargados en este ciclo.</div>';
@@ -308,7 +371,7 @@ async function saveGoogle(silent, _retry){
 }
 
 function renderAll(){
-  populateSelects();updateStats();renderCalendar();renderRecent();renderHolidays();renderStaff();renderReportControls();renderReport();
+  populateSelects();updateStats();renderCalendar();renderRecent();renderAssignmentsEditor();renderHolidays();renderStaff();renderReportControls();renderReport();
 }
 
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById(b.dataset.view).classList.add('active')}));
