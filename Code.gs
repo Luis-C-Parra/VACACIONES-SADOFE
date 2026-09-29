@@ -252,7 +252,7 @@ function saveState_(svc, state, perm) {
     if (ha.length) hol.getRange(2,1,ha.length,2).setValues(ha);
   }
   if (perm.ciclo && state.cycleStartYear) saveCycle_(Number(state.cycleStartYear));
-  return {ok:true};
+  return {ok:true, feriados:!!perm.feriados};
 }
 
 function addNurse_(svc, name) {

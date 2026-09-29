@@ -363,6 +363,7 @@ async function saveGoogle(silent, _retry){
     if(!r.ok)throw new Error('HTTP '+r.status);
     const sd=await r.json();
     if(sd.ok===false){setConnStatus('error',sd.message||'No se pudo guardar');if(!silent)toast(sd.message||'No se pudo guardar');return}
+    if(sd.feriados===undefined){const m='El Apps Script publicado está desactualizado: los feriados no se guardan en el Sheet. En Apps Script: Implementar > Administrar implementaciones > editar > Nueva versión.';setConnStatus('error',m);toast('Servidor desactualizado: los feriados no se guardan en el Sheet.');return}
     setConnStatus('ok','Conectado a Google Sheets. Última sincronización correcta.');
     if(!silent) toast('Planificación guardada en Google Sheets');
   }catch(e){
