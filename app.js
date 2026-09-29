@@ -1,5 +1,5 @@
 /* ==========================================================
-   PLANIFICACIÓN DE VACACIONES · ENFERMERÍA
+   PLANIFICACIÓN DE VACACIONES
    Todos los datos (personal, feriados, vacaciones, configuración)
    viven SIEMPRE en el Google Sheet conectado vía Apps Script.
    No hay datos de ejemplo precargados.
@@ -9,7 +9,7 @@
    (termina en /exec). No hace falta tocar nada más ni pegarla en
    la interfaz de la app.
    ========================================================== */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxfjC6TaHAdgSQnFDf5EAsKGhKpMZFpHVfjg_TkCnkUhGW1Ey0KiIKYngAYaw2tFB8/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbxY3wPARa7-vuYX8CPdOIJVoe58ZGcZ5s4Kmb-E2tJV9qmfm4ctxOCTSNDrSWGlavAq/exec';
 
 const KEY = 'vacaciones_enfermeria_sadofe_v2';
 
@@ -38,20 +38,20 @@ function apiConfigured(){
 
 // El localStorage se usa solo como caché de trabajo (por si se corta
 // la conexión), nunca como fuente de datos de ejemplo.
-let state = JSON.parse(localStorage.getItem(KEY) || 'null') || emptyState();
+let state = emptyState();  // sin caché local: los equipos del hospital son compartidos
 let cycleStartYear = Number(state.cycleStartYear || computeDefaultCycle());
 
 const monthsES=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
 const monthNums=[10,11,12,1,2,3,4,5,6,7];
 
-function persistLocal(){localStorage.setItem(KEY,JSON.stringify(state)); updateStats();}
+function persistLocal(){updateStats();}
 let autoSaveTimer=null;
 function save(){
   persistLocal();
   // Autoguardado: cada cambio (asignar, quitar día, feriado, ciclo)
   // se sincroniza solo con el Google Sheet, sin botones manuales.
   clearTimeout(autoSaveTimer);
-  autoSaveTimer=setTimeout(()=>{saveGoogle(true)},600);
+  autoSaveTimer=setTimeout(()=>{autoSaveTimer=null;saveGoogle(true)},600);
 }
 function toast(s){const t=document.getElementById('toast');t.textContent=s;t.style.display='block';clearTimeout(window._toast);window._toast=setTimeout(()=>t.style.display='none',2200)}
 function iso(y,m,d){return `${y}-${String(m).padStart(2,'0')}-${String(d).padStart(2,'0')}`}
@@ -80,7 +80,7 @@ function renderCalendar(){
     let people=filter==='vac'?namesWithVac(y,m):state.staff.slice();
     const n=daysIn(y,m);
     html+=`<div class="calendar-wrap" style="margin-bottom:16px"><table class="cal"><tr class="month-title"><th class="name" colspan="2">${monthLabel(m)} ${y}</th>${Array.from({length:n},(_,i)=>`<th class="day">${i+1}</th>`).join('')}</tr>`;
-    html+=`<tr><th class="name">ENFERMERO</th><th class="name"></th>`;
+    html+=`<tr><th class="name">PERSONAL</th><th class="name"></th>`;
     for(let d=1;d<=n;d++){const s=iso(y,m,d), h=holiday(s), we=isWeekend(s); html+=`<th class="day ${h?'holiday-head':we?'weekend-head':''}" title="${h?esc(h.name||'Feriado'):we?'Fin de semana':''}">${d}</th>`}
     html+='</tr>';
     if(!people.length) html+=`<tr><td colspan="${n+2}" class="empty">Sin personal para mostrar</td></tr>`;
@@ -94,7 +94,7 @@ function renderCalendar(){
     }
     html+='</table></div>';
   }
-  document.getElementById('calendar').innerHTML=html || `<div class="empty">No hay personal cargado todavía. Agregalo desde la pestaña "Enfermeros".</div>`;
+  document.getElementById('calendar').innerHTML=html || `<div class="empty">No hay personal cargado todavía. Agregalo desde la pestaña "Personal".</div>`;
 }
 function cellClick(nurse,s){
   if(!document.getElementById('quickNurse').value || document.getElementById('quickNurse').value!==nurse){document.getElementById('quickNurse').value=nurse}
@@ -106,7 +106,7 @@ function cellClick(nurse,s){
 }
 function assignRange(){
   const nurse=document.getElementById('assignNurse').value, from=document.getElementById('fromDate').value, to=document.getElementById('toDate').value, note=document.getElementById('assignNote').value.trim();
-  if(!nurse||!from||!to)return toast('Complete enfermero y fechas');
+  if(!nurse||!from||!to)return toast('Complete la persona y las fechas');
   let a=dateObj(from), b=dateObj(to); if(a>b)[a,b]=[b,a];
   let count=0;
   for(let d=new Date(a);d<=b;d.setDate(d.getDate()+1)){
@@ -126,7 +126,7 @@ function addHoliday(){
 }
 function deleteHoliday(d){state.holidays=state.holidays.filter(h=>h.date!==d);save();renderAll()}
 
-// --- Enfermeros: van directo contra el Sheet, no por el guardado genérico ---
+// --- Personal: van directo contra el Sheet, no por el guardado genérico ---
 async function addStaff(){
   const input=document.getElementById('newStaff');
   const n=input.value.trim();
@@ -135,12 +135,12 @@ async function addStaff(){
   if(!apiConfigured())return toast('Falta configurar la conexión con Google Sheets (ver app.js)');
   input.disabled=true;
   try{
-    const r=await fetch(API_URL,{method:'POST',headers: { 'Content-Type': 'text/plain;charset=utf-8' },body:JSON.stringify({action:'addNurse',name:n})});
+    const r=await apiFetch({action:'addNurse',name:n});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const data=await r.json();
     if(!data.ok){toast(data.message||'No se pudo agregar');return}
     state.staff.push(n);state.staff.sort((a,b)=>a.localeCompare(b,'es'));
-    persistLocal();renderAll();input.value='';toast('Enfermero agregado');
+    persistLocal();renderAll();input.value='';toast('Persona agregada');
     setConnStatus('ok','Conectado a Google Sheets.');
   }catch(e){console.error(e);toast('No se pudo conectar con Google Sheets');setConnStatus('error','No se pudo conectar con Google Sheets. Revisá la implementación del Apps Script.')}
   finally{input.disabled=false}
@@ -149,12 +149,12 @@ async function deleteStaff(n){
   if(!confirm(`¿Eliminar a ${n}? Las vacaciones existentes de esta persona también se eliminarán.`))return;
   if(!apiConfigured())return toast('Falta configurar la conexión con Google Sheets (ver app.js)');
   try{
-    const r=await fetch(API_URL,{method:'POST',headers: { 'Content-Type': 'text/plain;charset=utf-8' },body:JSON.stringify({action:'deleteNurse',name:n})});
+    const r=await apiFetch({action:'deleteNurse',name:n});
     if(!r.ok)throw new Error('HTTP '+r.status);
     const data=await r.json();
     if(!data.ok){toast(data.message||'No se pudo eliminar');return}
     state.staff=state.staff.filter(x=>x!==n);state.assignments=state.assignments.filter(a=>a.nurse!==n);
-    persistLocal();renderAll();toast('Enfermero eliminado');
+    persistLocal();renderAll();toast('Persona eliminada');
     setConnStatus('ok','Conectado a Google Sheets.');
   }catch(e){console.error(e);toast('No se pudo conectar con Google Sheets');setConnStatus('error','No se pudo conectar con Google Sheets. Revisá la implementación del Apps Script.')}
 }
@@ -174,7 +174,7 @@ function renderRecent(){
   for(const n of Object.keys(grouped)) {
     const ds=grouped[n].sort(); rows.push(`<tr><td>${esc(n)}</td><td>${ds.length} días</td><td>${formatRanges(ds)}</td></tr>`);
   }
-  document.getElementById('recentAssignments').innerHTML=rows.length?`<table class="report"><thead><tr><th>Enfermero</th><th>Días</th><th>Períodos</th></tr></thead><tbody>${rows.join('')}</tbody></table>`:'<div class="empty">No hay asignaciones.</div>';
+  document.getElementById('recentAssignments').innerHTML=rows.length?`<table class="report"><thead><tr><th>Personal</th><th>Días</th><th>Períodos</th></tr></thead><tbody>${rows.join('')}</tbody></table>`:'<div class="empty">No hay asignaciones.</div>';
 }
 function formatRanges(ds){
   if(!ds.length)return '';
@@ -201,7 +201,7 @@ function getPeriods(){
 function renderAssignmentsEditor(){
   const periods=getPeriods();
   document.getElementById('assignmentsEditor').innerHTML = periods.length
-    ? `<table class="report"><thead><tr><th>Enfermero</th><th>Desde</th><th>Hasta</th><th>Observación</th><th></th></tr></thead><tbody>${periods.map(renderPeriodRow).join('')}</tbody></table>`
+    ? `<table class="report"><thead><tr><th>Personal</th><th>Desde</th><th>Hasta</th><th>Observación</th><th></th></tr></thead><tbody>${periods.map(renderPeriodRow).join('')}</tbody></table>`
     : '<div class="empty">No hay vacaciones asignadas en este ciclo.</div>';
 }
 function renderPeriodRow(p){
@@ -231,7 +231,7 @@ function confirmEditPeriod(oldNurse,oldStart,oldEnd){
   const newNurse=document.getElementById('editPeriodNurse').value;
   const newNote=document.getElementById('editPeriodNote').value.trim();
   let a=dateObj(document.getElementById('editPeriodStart').value), b=dateObj(document.getElementById('editPeriodEnd').value);
-  if(!newNurse||isNaN(a)||isNaN(b))return toast('Complete enfermero y fechas');
+  if(!newNurse||isNaN(a)||isNaN(b))return toast('Complete la persona y las fechas');
   if(a>b)[a,b]=[b,a];
   removePeriodDates(oldNurse,oldStart,oldEnd);
   let count=0;
@@ -258,7 +258,7 @@ function renderReportControls(){
   const t=document.getElementById('reportType').value, box=document.getElementById('reportControls');
   if(t==='month')box.innerHTML=`<div class="field"><label>MES</label><select id="reportMonth">${cycleMonths().map(x=>`<option value="${x.y}-${x.m}">${monthLabel(x.m)} ${x.y}</option>`).join('')}</select></div>`;
   else if(t==='week')box.innerHTML=`<div class="field"><label>SEMANA (CUALQUIER DÍA)</label><input id="reportWeek" type="date" value="${iso(cycleStartYear,10,1)}"></div>`;
-  else if(t==='nurse')box.innerHTML=`<div class="field"><label>ENFERMERO</label><select id="reportNurse">${state.staff.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>`;
+  else if(t==='nurse')box.innerHTML=`<div class="field"><label>PERSONAL</label><select id="reportNurse">${state.staff.map(n=>`<option>${esc(n)}</option>`).join('')}</select></div>`;
   else box.innerHTML='';
 }
 function getRangeForReport(){
@@ -280,12 +280,12 @@ function renderReport(){
     title=r.title;
     state.staff.forEach(n=>{const ds=state.assignments.filter(a=>a.nurse===n&&a.date>=r.start&&a.date<=r.end).map(a=>a.date).sort();if(ds.length)rows.push([n,ds.length,formatRanges(ds)])});
   }
-  document.getElementById('reportResult').innerHTML=`<h2>${esc(title)}</h2>${rows.length?`<table class="report"><thead><tr><th>ENFERMERO</th><th>DÍAS</th><th>PERÍODOS</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r[0])}</td><td>${r[1]}</td><td>${esc(r[2])}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">No hay vacaciones asignadas para el criterio seleccionado.</div>'}`;
+  document.getElementById('reportResult').innerHTML=`<h2>${esc(title)}</h2>${rows.length?`<table class="report"><thead><tr><th>PERSONAL</th><th>DÍAS</th><th>PERÍODOS</th></tr></thead><tbody>${rows.map(r=>`<tr><td>${esc(r[0])}</td><td>${r[1]}</td><td>${esc(r[2])}</td></tr>`).join('')}</tbody></table>`:'<div class="empty">No hay vacaciones asignadas para el criterio seleccionado.</div>'}`;
 }
 function printReport(){window.print()}
 
 async function exportExcel(){
-  const wb=new ExcelJS.Workbook();wb.creator='Planificación de Vacaciones · Enfermería';wb.created=new Date();
+  const wb=new ExcelJS.Workbook();wb.creator='Planificación de Vacaciones';wb.created=new Date();
   const ws=wb.addWorksheet(`Planificación ${cycleStartYear}-${String(cycleStartYear+1).slice(-2)}`);
   ws.views=[{state:'frozen',xSplit:2,ySplit:4}];ws.pageSetup={orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0,paperSize:ws.PAPERSIZE_A3};
   ws.getColumn(1).width=2;ws.getColumn(2).width=25;for(let c=3;c<=33;c++)ws.getColumn(c).width=4;
@@ -319,7 +319,7 @@ async function exportPDF(){
     if(!first)doc.addPage();first=false;
     doc.setFontSize(14);doc.text(`PLANIFICACION DE VACACIONES · ${monthLabel(m)} ${y}`,12,12);
     doc.setFontSize(8);doc.text(`SECTOR: ${state.sector||'PISO ADULTO'} · TURNO: ${state.shift||'SADOFE'}`,12,18);
-    const head=['ENFERMERO'];for(let d=1;d<=daysIn(y,m);d++)head.push(String(d));
+    const head=['PERSONAL'];for(let d=1;d<=daysIn(y,m);d++)head.push(String(d));
     const body=namesWithVac(y,m).map(n=>[n,...Array.from({length:daysIn(y,m)},(_,i)=>hasVac(n,iso(y,m,i+1))?'x':'')]);
     doc.autoTable({head:[head],body,startY:22,margin:{left:8,right:8},theme:'grid',styles:{fontSize:6,cellPadding:1,halign:'center',valign:'middle'},headStyles:{fontSize:6,fillColor:[220,235,199],textColor:[0,0,0]},columnStyles:{0:{cellWidth:38,halign:'left'}}});
   }
@@ -337,8 +337,9 @@ function setConnStatus(kind,msg){
 async function loadGoogle(silent){
   if(!apiConfigured()){setConnStatus('error','Falta configurar la conexión con Google Sheets: pegá la URL de Apps Script en API_URL, dentro de app.js.');return}
   try{
-    const r=await fetch(API_URL+'?action=state',{cache:'no-store'}); if(!r.ok)throw new Error('HTTP '+r.status);
+    const r=await apiFetch({action:'getState'}); if(!r.ok)throw new Error('HTTP '+r.status);
     const data=await r.json();
+    if(data.ok===false)throw new Error(data.message||'Error');
     state.staff = data.staff || [];
     state.holidays = data.holidays || [];
     state.assignments = data.assignments || [];
@@ -358,8 +359,10 @@ async function loadGoogle(silent){
 async function saveGoogle(silent, _retry){
   if(!apiConfigured()){if(!silent)setConnStatus('error','Falta configurar la conexión con Google Sheets: pegá la URL de Apps Script en API_URL, dentro de app.js.');return}
   try{
-    const r=await fetch(API_URL,{method:'POST',headers: { 'Content-Type': 'text/plain;charset=utf-8' },body:JSON.stringify({action:'saveState',state})});
+    const r=await apiFetch({action:'saveState',state});
     if(!r.ok)throw new Error('HTTP '+r.status);
+    const sd=await r.json();
+    if(sd.ok===false){setConnStatus('error',sd.message||'No se pudo guardar');if(!silent)toast(sd.message||'No se pudo guardar');return}
     setConnStatus('ok','Conectado a Google Sheets. Última sincronización correcta.');
     if(!silent) toast('Planificación guardada en Google Sheets');
   }catch(e){
@@ -377,5 +380,4 @@ function renderAll(){
 document.querySelectorAll('.tab').forEach(b=>b.addEventListener('click',()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');document.getElementById(b.dataset.view).classList.add('active')}));
 
 renderAll();
-// Al abrir la app, siempre trae la última versión del Google Sheet.
-loadGoogle(true);
+// Los datos se cargan desde auth.js una vez que el usuario ingresa.
