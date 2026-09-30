@@ -6,7 +6,7 @@
 <title>Planificación de Vacaciones</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=4">
+<link rel="stylesheet" href="styles.css?v=5">
 <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
@@ -37,12 +37,12 @@
   <div class="card" style="margin-top:14px">
     <div class="controls">
       <div class="field"><label>CICLO</label><select id="cycleYear" onchange="changeCycle(this.value)"></select></div>
-      <div class="field"><label>VISTA</label><select id="staffFilter" onchange="renderCalendar()"><option value="all">Todos</option><option value="vac">Solo con vacaciones</option></select></div>
-      <div class="field"><label>PERSONAL SELECCIONADO</label><select id="quickNurse"></select></div>
+      <div class="field"><label>VISTA</label><select id="staffFilter" onchange="renderCalendar()"><option value="all">Todos</option><option value="vac">Solo con vacaciones</option><option value="one">Solo el personal seleccionado</option></select></div>
+      <div class="field"><label>PERSONAL SELECCIONADO</label><select id="quickNurse" onchange="onPickPerson()"></select></div>
     </div>
     <div class="legend">
       <span><i class="dot vac"></i> Vacaciones</span><span><i class="dot we"></i> Sábado / domingo</span><span><i class="dot hol"></i> Feriado</span>
-      <span class="muted">Con una persona seleccionada, haga clic sobre un día para asignar/quitar ese día.</span>
+      <span class="muted">Al elegir una persona se resalta su fila (o use Vista para ver solo esa persona). Haga clic sobre un día de su fila para asignar/quitar vacaciones.</span>
     </div>
   </div>
   <div id="calendar" style="margin-top:14px"></div>
@@ -107,6 +107,6 @@
 </section>
 </main><div id="toast"></div>
 
-<script src="app.js?v=4"></script>
-<script src="auth.js?v=4"></script>
+<script src="app.js?v=5"></script>
+<script src="auth.js?v=5"></script>
 </body></html>

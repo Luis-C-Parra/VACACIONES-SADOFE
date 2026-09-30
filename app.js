@@ -9,7 +9,7 @@
    (termina en /exec). No hace falta tocar nada más ni pegarla en
    la interfaz de la app.
    ========================================================== */
-const API_URL = 'https://script.google.com/macros/s/AKfycbxY3wPARa7-vuYX8CPdOIJVoe58ZGcZ5s4Kmb-E2tJV9qmfm4ctxOCTSNDrSWGlavAq/exec';
+const API_URL = 'https://script.google.com/macros/s/AKfycbzeuF2b7tvxulXgmcefG5yMcLzwAVEEz8l5hWYsu3wiZyhNK8Il4FNzPW-NKLqLcnJG/exec';
 
 const KEY = 'vacaciones_enfermeria_sadofe_v2';
 
@@ -67,7 +67,7 @@ function namesWithVac(y,m){return state.staff.filter(n=>state.assignments.some(a
 
 function populateSelects(){
   const opts=state.staff.map(n=>`<option>${esc(n)}</option>`).join('');
-  ['assignNurse','quickNurse'].forEach(id=>{document.getElementById(id).innerHTML=opts});
+  ['assignNurse','quickNurse'].forEach(id=>{const e=document.getElementById(id),prev=e.value;e.innerHTML=opts;if(prev&&state.staff.includes(prev))e.value=prev});
   const cy=document.getElementById('cycleYear'); cy.innerHTML=[cycleStartYear-1,cycleStartYear,cycleStartYear+1,cycleStartYear+2].map(y=>`<option value="${y}" ${y===cycleStartYear?'selected':''}>${y}-${y+1}</option>`).join('');
   document.getElementById('cycleTitle').textContent=`Ciclo Octubre ${cycleStartYear} – Julio ${cycleStartYear+1} · ${state.sector||'PISO ADULTO'} · ${state.shift||'SADOFE'}`;
 }
@@ -75,9 +75,9 @@ function esc(s){return String(s).replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;',
 
 function renderCalendar(){
   let html='';
-  const filter=document.getElementById('staffFilter').value;
+  const filter=document.getElementById('staffFilter').value, sel=document.getElementById('quickNurse').value;
   for(const {m,y} of cycleMonths()){
-    let people=filter==='vac'?namesWithVac(y,m):state.staff.slice();
+    let people=filter==='vac'?namesWithVac(y,m):filter==='one'?state.staff.filter(n=>n===sel):state.staff.slice();
     const n=daysIn(y,m);
     html+=`<div class="calendar-wrap" style="margin-bottom:16px"><table class="cal"><tr class="month-title"><th class="name" colspan="2">${monthLabel(m)} ${y}</th>${Array.from({length:n},(_,i)=>`<th class="day">${i+1}</th>`).join('')}</tr>`;
     html+=`<tr><th class="name">PERSONAL</th><th class="name"></th>`;
@@ -85,7 +85,7 @@ function renderCalendar(){
     html+='</tr>';
     if(!people.length) html+=`<tr><td colspan="${n+2}" class="empty">Sin personal para mostrar</td></tr>`;
     for(const nurse of people){
-      html+=`<tr><td class="name" colspan="2">${esc(nurse)}</td>`;
+      html+=`<tr class="${nurse===sel?'sel-row':''}"><td class="name" colspan="2">${esc(nurse)}</td>`;
       for(let d=1;d<=n;d++){
         const s=iso(y,m,d), h=holiday(s), we=isWeekend(s), v=hasVac(nurse,s);
         html+=`<td class="day ${v?'vac':h?'holiday-cell':we?'weekend-cell':''}" onclick="cellClick('${esc(nurse).replace(/'/g,"&#039;")}','${s}')" title="${v?'Vacaciones · '+nurse:h?h.name||'Feriado':we?'Fin de semana':'Asignar vacaciones'}">${v?'x':''}</td>`;
@@ -96,6 +96,7 @@ function renderCalendar(){
   }
   document.getElementById('calendar').innerHTML=html || `<div class="empty">No hay personal cargado todavía. Agregalo desde la pestaña "Personal".</div>`;
 }
+function onPickPerson(){renderCalendar();const r=document.querySelector('#calendar tr.sel-row');if(r)r.scrollIntoView({behavior:'smooth',block:'center'})}
 function cellClick(nurse,s){
   if(!document.getElementById('quickNurse').value || document.getElementById('quickNurse').value!==nurse){document.getElementById('quickNurse').value=nurse}
   if(!inCycle(s)) return;

@@ -41,3 +41,7 @@ input[type=password]{padding:10px 11px;border:1px solid #cbd2d9;border-radius:9p
 body.r-referente #holidays>.card:first-child,body.r-referente #holidayList button{display:none}
 body.r-referente .tab[data-view=staff],body.r-referente #staff{display:none!important}
 @media print{#splash,#login{display:none!important}}
+
+/* ---- Fila resaltada del personal seleccionado ---- */
+.cal tr.sel-row td.name{background:#dbeafe;font-weight:800;box-shadow:inset 4px 0 0 #2b6cb0}
+.cal tr.sel-row td.day:not(.vac):not(.holiday-cell):not(.weekend-cell){background:#eef6ff}
